@@ -20,9 +20,15 @@ import (
 
 const caCertPathDefault = "~/.minikube/ca.crt"
 const caKeyPathDefault = "~/.minikube/ca.key"
+const certOutDefault = "./cert.pem"
+const keyOutDefault = "./key.pem"
 
-var caCertPath = flag.String("ca-cert", caCertPathDefault, "Path to Minikube CA certificate")
-var caKeyPath = flag.String("ca-key", caKeyPathDefault, "Path to Minikube CA key")
+var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
+var caKeyPath = flag.String("ca-key", caKeyPathDefault, "path to Minikube CA key")
+
+var certPath = flag.String("cert", certOutDefault, "output path for client certificate")
+var keyPath = flag.String("key", keyOutDefault, "output path for client private key")
+
 var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
 
@@ -97,8 +103,6 @@ func main() {
 		}
 	}
 
-	fmt.Printf("cn=%s, o=%s, ca-cert=%s, ca-key=%s\n", *commonName, *organization, *caCertPath, *caKeyPath)
-
 	caCertFile, err := os.Open(*caCertPath)
 
 	if err != nil {
@@ -171,14 +175,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile("./cert.pem", certPem.Bytes(), 0755)
+	err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
 
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Failed to write certificate: %s\n", err.Error())
 		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile("./key.pem", keyPem.Bytes(), 0600)
+	err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
 
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Failed to write private key: %s\n", err.Error())
