@@ -2,6 +2,15 @@
 
 Generates client certificates and keys signed by Minikube's CA for quick authn/z setups.
 
+#### Installation
+
+```
+make
+sudo make install
+```
+
+Or, just `go build` it and stick it somewhere in your path.
+
 #### Usage
 
 ```
