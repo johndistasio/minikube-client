@@ -44,19 +44,19 @@ func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadAll(cert)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA certificate: %s\n", err.Error())
+		return nil, fmt.Errorf("Failed to read CA certificate: %s", err.Error())
 	}
 
 	caPem, _ := pem.Decode(caCertBytes)
 
 	if caPem == nil {
-		return nil, fmt.Errorf("Invalid CA certificate format\n")
+		return nil, fmt.Errorf("Invalid CA certificate format")
 	}
 
 	caCert, err := x509.ParseCertificate(caPem.Bytes)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse CA certificate: %s\n", err.Error())
+		return nil, fmt.Errorf("Failed to parse CA certificate: %s", err.Error())
 	}
 
 	return caCert, nil
@@ -66,26 +66,26 @@ func parseCAKey(key io.Reader) (*rsa.PrivateKey, error) {
 	caKeyBytes, err := ioutil.ReadAll(key)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA key: %s\n", err.Error())
+		return nil, fmt.Errorf("Failed to read CA key: %s", err.Error())
 	}
 
 	keyPem, _ := pem.Decode(caKeyBytes)
 
 	if keyPem == nil {
-		return nil, fmt.Errorf("Invalid CA key format\n")
+		return nil, fmt.Errorf("Invalid CA key format")
 	}
 
 	caKey, err := x509.ParsePKCS1PrivateKey(keyPem.Bytes)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse CA key: %s\n", err.Error())
+		return nil, fmt.Errorf("Failed to parse CA key: %s", err.Error())
 	}
 
 	return caKey, nil
 }
 
 func dief(format string, v ...interface{}) {
-	die(fmt.Sprintf(format, v))
+	die(fmt.Sprintf(format, v...))
 }
 
 func die(message string) {
@@ -120,7 +120,7 @@ func main() {
 
 		home = filepath.Clean(home)
 
-		if *kubeConfigPath == kubeConfigPathDefault{
+		if *kubeConfigPath == kubeConfigPathDefault {
 			*kubeConfigPath = strings.Replace(kubeConfigPathDefault, "~", home, 1)
 		}
 
@@ -202,13 +202,13 @@ func main() {
 		err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
 
 		if err != nil {
-			dief("Failed to write certificate: %s\n", err.Error())
+			dief("Failed to write certificate: %s", err.Error())
 		}
 
 		err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
 
 		if err != nil {
-			dief("Failed to write private key: %s\n", err.Error())
+			dief("Failed to write private key: %s", err.Error())
 			_ = os.Remove(*certPath)
 		}
 	} else {
@@ -220,7 +220,7 @@ func main() {
 
 		config.AuthInfos[*commonName] = &kubeconfigapi.AuthInfo{
 			ClientCertificateData: certPem.Bytes(),
-			ClientKeyData: keyPem.Bytes(),
+			ClientKeyData:         keyPem.Bytes(),
 		}
 
 		err = kubeconfig.WriteToFile(*config, *kubeConfigPath)
