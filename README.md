@@ -39,4 +39,3 @@ minikube-client -cn mymuser -o mygroup -cert /path/to/cert.pem -key /path/to/key
 ```
 
 These can be used by any system that needs to access your Minikube instance.
-

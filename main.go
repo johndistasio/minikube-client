@@ -209,6 +209,7 @@ func main() {
 
 		if err != nil {
 			dief("Failed to write private key: %s\n", err.Error())
+			_ = os.Remove(*certPath)
 		}
 	} else {
 		config, err := clientcmd.LoadFromFile(*kubeConfigPath)
