@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/clientcmd/api"
+	kubeconfig "k8s.io/client-go/tools/clientcmd"
+	kubeconfigapi "k8s.io/client-go/tools/clientcmd/api"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -212,18 +212,18 @@ func main() {
 			_ = os.Remove(*certPath)
 		}
 	} else {
-		config, err := clientcmd.LoadFromFile(*kubeConfigPath)
+		config, err := kubeconfig.LoadFromFile(*kubeConfigPath)
 
 		if err != nil {
 			dief("Failed to load kubeconfig: %s", err.Error())
 		}
 
-		config.AuthInfos[*commonName] = &api.AuthInfo{
+		config.AuthInfos[*commonName] = &kubeconfigapi.AuthInfo{
 			ClientCertificateData: certPem.Bytes(),
 			ClientKeyData: keyPem.Bytes(),
 		}
 
-		err = clientcmd.WriteToFile(*config, *kubeConfigPath)
+		err = kubeconfig.WriteToFile(*config, *kubeConfigPath)
 
 		if err != nil {
 			die(err.Error())
