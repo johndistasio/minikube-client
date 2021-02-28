@@ -93,6 +93,24 @@ func die(message string) {
 	os.Exit(1)
 }
 
+func resolveKubeConfigPath(home string, env string) string {
+	var output string
+
+	for _, path := range strings.Split(env, ":") {
+		if path != "" {
+			output = strings.Replace(path, "~", home, 1)
+			output = strings.Replace(output, "$HOME", home, 1)
+			break
+		}
+	}
+
+	if output ==  "" {
+		output = filepath.Join(home, ".kube/config")
+	}
+
+	return output
+}
+
 func main() {
 	flag.Parse()
 
@@ -105,37 +123,26 @@ func main() {
 		die("Both -cn and -o are required")
 	}
 
-	if *kubeConfigPath == kubeConfigPathDefault || *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
-		home, err := os.UserHomeDir()
+	home, err := os.UserHomeDir()
 
-		if err != nil {
-			die(fmt.Sprintf("Fatal: %s", err.Error()))
-		}
-
-		home = filepath.Clean(home)
-
-		if *caCertPath == caCertPathDefault {
-			*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
-		}
-
-		if *caKeyPath == caKeyPathDefault {
-			*caKeyPath = strings.Replace(caKeyPathDefault, "~", home, 1)
-		}
-
-		if *kubeConfigPath == kubeConfigPathDefault {
-			for _, path := range strings.Split(os.Getenv("KUBECONFIG"), ":") {
-				if path != "" {
-					*kubeConfigPath = strings.Replace(path, "~", home, 1)
-					*kubeConfigPath = strings.Replace(*kubeConfigPath, "$HOME", home, 1)
-					break
-				}
-			}
-
-			if *kubeConfigPath == kubeConfigPathDefault {
-				*kubeConfigPath = filepath.Join(home, ".kube/config")
-			}
-		}
+	if err != nil {
+		dief("Fatal: %s", err.Error())
 	}
+
+	env := os.Getenv("KUBECONFIG")
+
+	if *kubeConfigPath == kubeConfigPathDefault {
+		*kubeConfigPath = resolveKubeConfigPath(home, env)
+	}
+
+	if *caCertPath == caCertPathDefault {
+		*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
+	}
+
+	if *caKeyPath == caKeyPathDefault {
+		*caKeyPath = strings.Replace(caKeyPathDefault, "~", home, 1)
+	}
+
 
 	caCertFile, err := os.Open(*caCertPath)
 
