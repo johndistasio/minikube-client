@@ -52,7 +52,7 @@ func main() {
 	home, err := os.UserHomeDir()
 
 	if err != nil {
-		log.Fatalf("fatal: %s", err.Error())
+		log.Fatalf("failed to determine home directory: %s", err.Error())
 	}
 
 	env := os.Getenv("KUBECONFIG")
@@ -94,7 +94,7 @@ func main() {
 		*outPath, err = filepath.Abs(*outPath)
 
 		if err != nil {
-			log.Fatalf("Failed to determine absolute output path: %s", err.Error())
+			log.Fatalf("failed to determine output path: %s", err.Error())
 		}
 
 		certPath := filepath.Join(*outPath, *commonName+".crt")
@@ -103,22 +103,22 @@ func main() {
 		err = ioutil.WriteFile(certPath, certPem, 0755)
 
 		if err != nil {
-			log.Fatalf("Failed to write certificate: %s", err.Error())
+			log.Fatalf("failed to write certificate: %s", err.Error())
 		}
 
 		err = ioutil.WriteFile(keyPath, keyPem, 0600)
 
 		if err != nil {
 			_ = os.Remove(certPath)
-			log.Fatalf("Failed to write private key: %s", err.Error())
+			log.Fatalf("failed to write private key: %s", err.Error())
 		}
 
-		fmt.Printf("Wrote certificate and key to %s\n", *outPath)
+		fmt.Printf("wrote certificate and key to %s\n", *outPath)
 	} else {
 		config, err := kubeconfig.LoadFromFile(*kubeConfigPath)
 
 		if err != nil {
-			log.Fatalf("Failed to load kubeconfig: %s", err.Error())
+			log.Fatalf("failed to load kubeconfig: %s", err.Error())
 		}
 
 		config.AuthInfos[*commonName] = &kubeconfigapi.AuthInfo{
@@ -132,6 +132,6 @@ func main() {
 			log.Fatal(err.Error())
 		}
 
-		fmt.Printf("Added certificate and key to %s\n", *kubeConfigPath)
+		fmt.Printf("added certificate and key to %s\n", *kubeConfigPath)
 	}
 }
