@@ -91,7 +91,11 @@ func main() {
 	}
 
 	if *outPath != "" {
-		*outPath = filepath.Clean(*outPath)
+		*outPath, err = filepath.Abs(*outPath)
+
+		if err != nil {
+			log.Fatalf("Failed to determine absolute output path: %s", err.Error())
+		}
 
 		certPath := filepath.Join(*outPath, *commonName+".crt")
 		keyPath := filepath.Join(*outPath, *commonName+".key")
