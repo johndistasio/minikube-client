@@ -45,19 +45,19 @@ func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadAll(cert)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA certificate: %s", err.Error())
+		return nil, err
 	}
 
 	caPem, _ := pem.Decode(caCertBytes)
 
 	if caPem == nil {
-		return nil, fmt.Errorf("Invalid CA certificate format")
+		return nil, fmt.Errorf("invalid certificate format")
 	}
 
 	caCert, err := x509.ParseCertificate(caPem.Bytes)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse CA certificate: %s", err.Error())
+		return nil, err
 	}
 
 	return caCert, nil
@@ -67,19 +67,19 @@ func parseCAKey(key io.Reader) (*rsa.PrivateKey, error) {
 	caKeyBytes, err := ioutil.ReadAll(key)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA key: %s", err.Error())
+		return nil, err
 	}
 
 	keyPem, _ := pem.Decode(caKeyBytes)
 
 	if keyPem == nil {
-		return nil, fmt.Errorf("Invalid CA key format")
+		return nil, fmt.Errorf("invalid CA key format")
 	}
 
 	caKey, err := x509.ParsePKCS1PrivateKey(keyPem.Bytes)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse CA key: %s", err.Error())
+		return nil, err
 	}
 
 	return caKey, nil
@@ -145,8 +145,7 @@ func main() {
 	caCert, err := parseCACertificate(caCertFile)
 
 	if err != nil {
-		_, _ = fmt.Fprint(os.Stderr, err.Error())
-		os.Exit(1)
+		dief("Failed to parse CA certificate: %s", err.Error())
 	}
 
 	caKeyFile, err := os.Open(*caKeyPath)
@@ -160,7 +159,7 @@ func main() {
 	caKey, err := parseCAKey(caKeyFile)
 
 	if err != nil {
-		die(err.Error())
+		dief("Failed to parse CA key: %s", err.Error())
 	}
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
