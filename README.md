@@ -8,9 +8,9 @@ Generates client certificates and keys signed by Minikube's CA for quick authn/z
 minikube-client -cn myuser -o mygroup
 ```
 
-Note that `-o` accepts a comma-delimited string e.g. `a,b` for multiple groups.
+Note that `-o` accepts a comma-delimited string (e.g. `a,b`) for multiple groups.
 
-Your `~/.kube/config` will be updated with an embedded client certificate and key:
+Your kubeconfig will be updated with an embedded client certificate and key:
 
 ```yaml
 apiVersion: v1
@@ -26,15 +26,21 @@ users:
 
 Now run `kubectl`:
 
-```
+```shell script
 kubectl --user myuser ...
 ```
 
 #### Advanced Usage
 
-You can also generate a standalone certificate and key with the `-cert` and `-key` flags:
+The location of your kubeconfig is resolved following rules similar to `kubectl`. In order of priority, these are:
 
-```
+1. The value of the  `-kubeconfig` flag, if provided.
+2. The first valid path in `$KUBECONFIG`, if present.
+3. `~/.kube/config`
+
+You can also generate a standalone certificate and key instead, using the `-cert` and `-key` flags:
+
+```shell script
 minikube-client -cn mymuser -o mygroup -cert /path/to/cert.pem -key /path/to/key.pem
 ```
 

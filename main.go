@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const kubeConfigPathDefault = "~/.kube/config"
+const kubeConfigPathDefault = "$KUBECONFIG, ~/.kube/config"
 const caCertPathDefault = "~/.minikube/ca.crt"
 const caKeyPathDefault = "~/.minikube/ca.key"
 const notAfterDefault = int64(365 * 10)
@@ -28,7 +28,7 @@ const notAfterDefault = int64(365 * 10)
 var commit string
 var version string
 
-var kubeConfigPath = flag.String("kube-config", kubeConfigPathDefault, "path to kubeconfig file")
+var kubeConfigPath = flag.String("kubeconfig", kubeConfigPathDefault, "path to kubeconfig file")
 var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
 var caKeyPath = flag.String("ca-key", caKeyPathDefault, "path to Minikube CA key")
 
@@ -121,16 +121,26 @@ func main() {
 
 		home = filepath.Clean(home)
 
-		if *kubeConfigPath == kubeConfigPathDefault {
-			*kubeConfigPath = strings.Replace(kubeConfigPathDefault, "~", home, 1)
-		}
-
 		if *caCertPath == caCertPathDefault {
 			*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
 		}
 
 		if *caKeyPath == caKeyPathDefault {
 			*caKeyPath = strings.Replace(caKeyPathDefault, "~", home, 1)
+		}
+
+		if *kubeConfigPath == kubeConfigPathDefault {
+			for _, path := range strings.Split(os.Getenv("KUBECONFIG"), ":") {
+				if path != "" {
+					*kubeConfigPath = strings.Replace(path, "~", home, 1)
+					*kubeConfigPath = strings.Replace(*kubeConfigPath, "$HOME", home, 1)
+					break
+				}
+			}
+
+			if *kubeConfigPath == kubeConfigPathDefault {
+				*kubeConfigPath = filepath.Join(home, ".kube/config")
+			}
 		}
 	}
 
