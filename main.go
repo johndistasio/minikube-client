@@ -25,7 +25,8 @@ const caCertPathDefault = "~/.minikube/ca.crt"
 const caKeyPathDefault = "~/.minikube/ca.key"
 const notAfterDefault = int64(365 * 10)
 
-var revision = "devel"
+var commit string
+var version string
 
 var kubeConfigPath = flag.String("kube-config", kubeConfigPathDefault, "path to kubeconfig file")
 var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
@@ -38,7 +39,7 @@ var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
 var notAfter = flag.Int64("not-after", notAfterDefault, "client certificate expiration, in days")
 
-var version = flag.Bool("version", false, "output version information and exit")
+var showVersion = flag.Bool("version", false, "output version information and exit")
 
 func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadAll(cert)
@@ -96,8 +97,8 @@ func die(message string) {
 func main() {
 	flag.Parse()
 
-	if *version {
-		fmt.Printf("minikube-client: %s\n", revision)
+	if *showVersion {
+		fmt.Printf("minikube-client: %s %s\n", version, commit)
 		os.Exit(0)
 	}
 
