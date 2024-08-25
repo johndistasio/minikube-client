@@ -38,10 +38,11 @@ The location of your kubeconfig is resolved following rules similar to `kubectl`
 2. The first valid path in `$KUBECONFIG`, if present.
 3. `~/.kube/config`
 
-You can also generate a standalone certificate and key instead, using the `-cert` and `-key` flags:
+You can also generate a standalone certificate and private key with the `-out` flag:
 
 ```shell script
-minikube-client -cn mymuser -o mygroup -cert /path/to/cert.pem -key /path/to/key.pem
+minikube-client -cn mymuser -o mygroup -out /some/path
 ```
 
-These can be used by any system that needs to access your Minikube instance.
+This will write the certificate to `/some/path/myuser.crt` and the key to `/some/path/myuser.key`. These can be used by
+any system that needs to access your Minikube instance.

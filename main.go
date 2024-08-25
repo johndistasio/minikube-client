@@ -32,8 +32,7 @@ var kubeConfigPath = flag.String("kubeconfig", kubeConfigPathDefault, "path to k
 var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
 var caKeyPath = flag.String("ca-key", caKeyPathDefault, "path to Minikube CA key")
 
-var certPath = flag.String("cert", "", "output path for client certificate (requires -key)")
-var keyPath = flag.String("key", "", "output path for client key (requires -cert)")
+var outPath = flag.String("out", "", "output path for client certificate and key")
 
 var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
@@ -104,12 +103,6 @@ func main() {
 
 	if *commonName == "" || *organization == "" {
 		die("Both -cn and -o are required")
-	}
-
-	if *certPath != "" || *keyPath != "" {
-		if *certPath == "" || *keyPath == "" {
-			die("Both of -cert and -key are required, or neither")
-		}
 	}
 
 	if *kubeConfigPath == kubeConfigPathDefault || *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
@@ -208,19 +201,26 @@ func main() {
 		dief("Failed to encode private key: %s", err.Error())
 	}
 
-	if *certPath != "" && *keyPath != "" {
-		err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
+	if *outPath != "" {
+		*outPath = filepath.Clean(*outPath)
+
+		certPath := filepath.Join(*outPath, *commonName + ".crt")
+		keyPath := filepath.Join(*outPath, *commonName + ".key")
+
+		err = ioutil.WriteFile(certPath, certPem.Bytes(), 0755)
 
 		if err != nil {
 			dief("Failed to write certificate: %s", err.Error())
 		}
 
-		err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
+		err = ioutil.WriteFile(keyPath, keyPem.Bytes(), 0600)
 
 		if err != nil {
+			_ = os.Remove(certPath)
 			dief("Failed to write private key: %s", err.Error())
-			_ = os.Remove(*certPath)
 		}
+
+		fmt.Printf("Wrote certificate and key to %s\n", *outPath)
 	} else {
 		config, err := kubeconfig.LoadFromFile(*kubeConfigPath)
 
@@ -238,5 +238,7 @@ func main() {
 		if err != nil {
 			die(err.Error())
 		}
+
+		fmt.Printf("Added certificate and key to %s\n", *kubeConfigPath)
 	}
 }
