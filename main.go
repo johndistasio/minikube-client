@@ -23,6 +23,8 @@ const caKeyPathDefault = "~/.minikube/ca.key"
 const certOutDefault = "./cert.pem"
 const keyOutDefault = "./key.pem"
 
+var revision string
+
 var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
 var caKeyPath = flag.String("ca-key", caKeyPathDefault, "path to Minikube CA key")
 
@@ -31,6 +33,8 @@ var keyPath = flag.String("key", keyOutDefault, "output path for client private 
 
 var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
+
+var version = flag.Bool("version", false, "version information")
 
 func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadAll(cert)
@@ -78,6 +82,11 @@ func parseCAKey(key io.Reader) (*rsa.PrivateKey, error) {
 
 func main() {
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("minikube-client: %s\n", revision)
+		os.Exit(0)
+	}
 
 	if *commonName == "" || *organization == "" {
 		_, _ = fmt.Fprintln(os.Stderr, "Invalid input: CommonName and Organization are required.")
