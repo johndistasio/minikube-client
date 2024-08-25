@@ -11,7 +11,7 @@ Example usage (`-o` accepts a comma-delimited string e.g. `a,b` for multiple gro
 Update your kubeconfig to match:
 
 ```yaml
-apiVersion: v`
+apiVersion: v1
 kind: Config
 # other fields...
 users:
