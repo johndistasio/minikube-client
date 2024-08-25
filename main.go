@@ -80,6 +80,15 @@ func parseCAKey(key io.Reader) (*rsa.PrivateKey, error) {
 	return caKey, nil
 }
 
+func dief(format string, v ...interface{}) {
+	die(fmt.Sprintf(format, v))
+}
+
+func die(message string) {
+	_, _ = fmt.Println(message)
+	os.Exit(1)
+}
+
 func main() {
 	flag.Parse()
 
@@ -89,16 +98,14 @@ func main() {
 	}
 
 	if *commonName == "" || *organization == "" {
-		_, _ = fmt.Fprintln(os.Stderr, "Invalid input: CommonName and Organization are required.")
-		os.Exit(1)
+		die("Invalid input: CommonName and Organization are required.")
 	}
 
 	if *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
 		home, err := os.UserHomeDir()
 
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Fatal: %s\n", err.Error())
-			os.Exit(1)
+			die(fmt.Sprintf("Fatal: %s", err.Error()))
 		}
 
 		home = filepath.Clean(home)
@@ -115,8 +122,7 @@ func main() {
 	caCertFile, err := os.Open(*caCertPath)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to open CA certificate: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to open CA certificate: %s", err.Error())
 	}
 
 	defer caCertFile.Close()
@@ -131,8 +137,7 @@ func main() {
 	caKeyFile, err := os.Open(*caKeyPath)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to open CA key: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to open CA key: %s", err.Error())
 	}
 
 	defer caKeyFile.Close()
@@ -140,15 +145,13 @@ func main() {
 	caKey, err := parseCAKey(caKeyFile)
 
 	if err != nil {
-		_, _ = fmt.Fprint(os.Stderr, err.Error())
-		os.Exit(1)
+		die(err.Error())
 	}
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Private key generation error: %s\n", err.Error())
-		os.Exit(1)
+		dief("Private key generation error: %s", err.Error())
 	}
 
 	cert := &x509.Certificate{
@@ -166,35 +169,30 @@ func main() {
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, key.Public(), caKey)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to sign certificate: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to sign certificate: %s", err.Error())
 	}
 
 	certPem := &bytes.Buffer{}
 
 	if err := pem.Encode(certPem, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes}); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to encode certificate: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to encode certificate: %s", err.Error())
 	}
 
 	keyPem := &bytes.Buffer{}
 
 	if err := pem.Encode(keyPem, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to encode private key: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to encode private key: %s", err.Error())
 	}
 
 	err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to write certificate: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to write certificate: %s\n", err.Error())
 	}
 
 	err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to write private key: %s\n", err.Error())
-		os.Exit(1)
+		dief("Failed to write private key: %s\n", err.Error())
 	}
 }
