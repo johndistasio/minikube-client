@@ -5,7 +5,7 @@ Generates client certificates and keys signed by Minikube's CA for quick authn/z
 #### Usage
 
 ```
-minikube-client -cn mymuser -o mygroup
+minikube-client -cn myuser -o mygroup
 ```
 
 Note that `-o` accepts a comma-delimited string e.g. `a,b` for multiple groups.
