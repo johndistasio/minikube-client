@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/clientcmd/api"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -18,25 +20,25 @@ import (
 	"time"
 )
 
+const kubeConfigPathDefault = "~/.kube/config"
 const caCertPathDefault = "~/.minikube/ca.crt"
 const caKeyPathDefault = "~/.minikube/ca.key"
-const certOutDefault = "./cert.pem"
-const keyOutDefault = "./key.pem"
 const notAfterDefault = int64(365 * 10)
 
-var revision string
+var revision = "devel"
 
+var kubeConfigPath = flag.String("kube-config", kubeConfigPathDefault, "path to kubeconfig file")
 var caCertPath = flag.String("ca-cert", caCertPathDefault, "path to Minikube CA certificate")
 var caKeyPath = flag.String("ca-key", caKeyPathDefault, "path to Minikube CA key")
 
-var certPath = flag.String("cert", certOutDefault, "output path for client certificate")
-var keyPath = flag.String("key", keyOutDefault, "output path for client private key")
+var certPath = flag.String("cert", "", "output path for client certificate (requires -key)")
+var keyPath = flag.String("key", "", "output path for client key (requires -cert)")
 
 var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
 var notAfter = flag.Int64("not-after", notAfterDefault, "client certificate expiration, in days")
 
-var version = flag.Bool("version", false, "version information")
+var version = flag.Bool("version", false, "output version information and exit")
 
 func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadAll(cert)
@@ -100,10 +102,16 @@ func main() {
 	}
 
 	if *commonName == "" || *organization == "" {
-		die("Invalid input: CommonName and Organization are required.")
+		die("Both -cn and -o are required")
 	}
 
-	if *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
+	if *certPath != "" || *keyPath != "" {
+		if *certPath == "" || *keyPath == "" {
+			die("Both of -cert and -key are required, or neither")
+		}
+	}
+
+	if *kubeConfigPath == kubeConfigPathDefault || *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
 		home, err := os.UserHomeDir()
 
 		if err != nil {
@@ -111,6 +119,10 @@ func main() {
 		}
 
 		home = filepath.Clean(home)
+
+		if *kubeConfigPath == kubeConfigPathDefault{
+			*kubeConfigPath = strings.Replace(kubeConfigPathDefault, "~", home, 1)
+		}
 
 		if *caCertPath == caCertPathDefault {
 			*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
@@ -186,15 +198,34 @@ func main() {
 		dief("Failed to encode private key: %s", err.Error())
 	}
 
-	err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
+	if *certPath != "" && *keyPath != "" {
+		err = ioutil.WriteFile(*certPath, certPem.Bytes(), 0755)
 
-	if err != nil {
-		dief("Failed to write certificate: %s\n", err.Error())
-	}
+		if err != nil {
+			dief("Failed to write certificate: %s\n", err.Error())
+		}
 
-	err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
+		err = ioutil.WriteFile(*keyPath, keyPem.Bytes(), 0600)
 
-	if err != nil {
-		dief("Failed to write private key: %s\n", err.Error())
+		if err != nil {
+			dief("Failed to write private key: %s\n", err.Error())
+		}
+	} else {
+		config, err := clientcmd.LoadFromFile(*kubeConfigPath)
+
+		if err != nil {
+			dief("Failed to load kubeconfig: %s", err.Error())
+		}
+
+		config.AuthInfos[*commonName] = &api.AuthInfo{
+			ClientCertificateData: certPem.Bytes(),
+			ClientKeyData: keyPem.Bytes(),
+		}
+
+		err = clientcmd.WriteToFile(*config, *kubeConfigPath)
+
+		if err != nil {
+			die(err.Error())
+		}
 	}
 }
