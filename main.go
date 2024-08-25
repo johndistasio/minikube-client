@@ -22,6 +22,7 @@ const caCertPathDefault = "~/.minikube/ca.crt"
 const caKeyPathDefault = "~/.minikube/ca.key"
 const certOutDefault = "./cert.pem"
 const keyOutDefault = "./key.pem"
+const notAfterDefault = int64(365 * 10)
 
 var revision string
 
@@ -33,6 +34,7 @@ var keyPath = flag.String("key", keyOutDefault, "output path for client private 
 
 var commonName = flag.String("cn", "", "client certificate CommonName")
 var organization = flag.String("o", "", "client certificate Organization")
+var notAfter = flag.Int64("not-after", notAfterDefault, "client certificate expiration, in days")
 
 var version = flag.Bool("version", false, "version information")
 
@@ -161,7 +163,7 @@ func main() {
 			Organization: strings.Split(*organization, ","),
 		},
 		NotBefore:   time.Now().Add(-time.Hour),
-		NotAfter:    time.Now().Add(time.Hour * 24 * 365 * 10),
+		NotAfter:    time.Now().Add(time.Hour * 24 * time.Duration(*notAfter)),
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
