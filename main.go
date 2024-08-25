@@ -1,23 +1,19 @@
 package main
 
 import (
-	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"flag"
 	"fmt"
-	"io"
 	"io/ioutil"
-	kubeconfig "k8s.io/client-go/tools/clientcmd"
-	kubeconfigapi "k8s.io/client-go/tools/clientcmd/api"
-	"math/big"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	kubeconfig "k8s.io/client-go/tools/clientcmd"
+	kubeconfigapi "k8s.io/client-go/tools/clientcmd/api"
+
+	"github.com/johndistasio/minikube-client/internal"
 )
 
 const kubeConfigPathDefault = "$KUBECONFIG, ~/.kube/config"
@@ -40,184 +36,77 @@ var notAfter = flag.Int64("not-after", notAfterDefault, "client certificate expi
 
 var showVersion = flag.Bool("version", false, "output version information and exit")
 
-func parseCACertificate(cert io.Reader) (*x509.Certificate, error) {
-	caCertBytes, err := ioutil.ReadAll(cert)
-
-	if err != nil {
-		return nil, err
-	}
-
-	caPem, _ := pem.Decode(caCertBytes)
-
-	if caPem == nil {
-		return nil, fmt.Errorf("invalid certificate format")
-	}
-
-	caCert, err := x509.ParseCertificate(caPem.Bytes)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return caCert, nil
-}
-
-func parseCAKey(key io.Reader) (*rsa.PrivateKey, error) {
-	caKeyBytes, err := ioutil.ReadAll(key)
-
-	if err != nil {
-		return nil, err
-	}
-
-	keyPem, _ := pem.Decode(caKeyBytes)
-
-	if keyPem == nil {
-		return nil, fmt.Errorf("invalid CA key format")
-	}
-
-	caKey, err := x509.ParsePKCS1PrivateKey(keyPem.Bytes)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return caKey, nil
-}
-
-func dief(format string, v ...interface{}) {
-	die(fmt.Sprintf(format, v...))
-}
-
-func die(message string) {
-	_, _ = fmt.Println(message)
-	os.Exit(1)
-}
-
 func main() {
+	log.SetFlags(0)
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("minikube-client: %s %s\n", version, commit)
+		log.Printf("minikube-client: %s %s\n", version, commit)
 		os.Exit(0)
 	}
 
 	if *commonName == "" || *organization == "" {
-		die("Both -cn and -o are required")
+		log.Fatal("both -cn and -o are required")
 	}
 
-	if *kubeConfigPath == kubeConfigPathDefault || *caCertPath == caCertPathDefault || *caKeyPath == caKeyPathDefault {
-		home, err := os.UserHomeDir()
-
-		if err != nil {
-			die(fmt.Sprintf("Fatal: %s", err.Error()))
-		}
-
-		home = filepath.Clean(home)
-
-		if *caCertPath == caCertPathDefault {
-			*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
-		}
-
-		if *caKeyPath == caKeyPathDefault {
-			*caKeyPath = strings.Replace(caKeyPathDefault, "~", home, 1)
-		}
-
-		if *kubeConfigPath == kubeConfigPathDefault {
-			for _, path := range strings.Split(os.Getenv("KUBECONFIG"), ":") {
-				if path != "" {
-					*kubeConfigPath = strings.Replace(path, "~", home, 1)
-					*kubeConfigPath = strings.Replace(*kubeConfigPath, "$HOME", home, 1)
-					break
-				}
-			}
-
-			if *kubeConfigPath == kubeConfigPathDefault {
-				*kubeConfigPath = filepath.Join(home, ".kube/config")
-			}
-		}
-	}
-
-	caCertFile, err := os.Open(*caCertPath)
+	home, err := os.UserHomeDir()
 
 	if err != nil {
-		dief("Failed to open CA certificate: %s", err.Error())
+		log.Fatalf("fatal: %s", err.Error())
 	}
 
-	defer caCertFile.Close()
+	env := os.Getenv("KUBECONFIG")
 
-	caCert, err := parseCACertificate(caCertFile)
+	if *kubeConfigPath == kubeConfigPathDefault {
+		*kubeConfigPath = internal.ResolveKubeConfigPath(home, env)
+	}
+
+	if *caCertPath == caCertPathDefault {
+		*caCertPath = strings.Replace(caCertPathDefault, "~", home, 1)
+	}
+
+	if *caKeyPath == caKeyPathDefault {
+		*caKeyPath = strings.Replace(caKeyPathDefault, "~", home, 1)
+	}
+
+	caCert, caKey, err := internal.OpenCA(*caCertPath, *caKeyPath)
 
 	if err != nil {
-		dief("Failed to parse CA certificate: %s", err.Error())
+		log.Fatal(err.Error())
 	}
 
-	caKeyFile, err := os.Open(*caKeyPath)
+	options := internal.Options{
+		CommonName:   *commonName,
+		Organization: *organization,
+		NotAfter:     time.Now().Add(time.Hour * 24 * time.Duration(*notAfter)),
+		KeyBits:      2028,
+		CACert:       caCert,
+		CAKey:        caKey,
+	}
+
+	certPem, keyPem, err := internal.GenerateSignedCertAndKey(options)
 
 	if err != nil {
-		dief("Failed to open CA key: %s", err.Error())
-	}
-
-	defer caKeyFile.Close()
-
-	caKey, err := parseCAKey(caKeyFile)
-
-	if err != nil {
-		dief("Failed to parse CA key: %s", err.Error())
-	}
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-
-	if err != nil {
-		dief("Private key generation error: %s", err.Error())
-	}
-
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().Unix()),
-		Subject: pkix.Name{
-			CommonName:   *commonName,
-			Organization: strings.Split(*organization, ","),
-		},
-		NotBefore:   time.Now().Add(-time.Hour),
-		NotAfter:    time.Now().Add(time.Hour * 24 * time.Duration(*notAfter)),
-		KeyUsage:    x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, caCert, key.Public(), caKey)
-
-	if err != nil {
-		dief("Failed to sign certificate: %s", err.Error())
-	}
-
-	certPem := &bytes.Buffer{}
-
-	if err := pem.Encode(certPem, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes}); err != nil {
-		dief("Failed to encode certificate: %s", err.Error())
-	}
-
-	keyPem := &bytes.Buffer{}
-
-	if err := pem.Encode(keyPem, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}); err != nil {
-		dief("Failed to encode private key: %s", err.Error())
+		log.Fatal(err.Error())
 	}
 
 	if *outPath != "" {
 		*outPath = filepath.Clean(*outPath)
 
-		certPath := filepath.Join(*outPath, *commonName + ".crt")
-		keyPath := filepath.Join(*outPath, *commonName + ".key")
+		certPath := filepath.Join(*outPath, *commonName+".crt")
+		keyPath := filepath.Join(*outPath, *commonName+".key")
 
-		err = ioutil.WriteFile(certPath, certPem.Bytes(), 0755)
+		err = ioutil.WriteFile(certPath, certPem, 0755)
 
 		if err != nil {
-			dief("Failed to write certificate: %s", err.Error())
+			log.Fatalf("Failed to write certificate: %s", err.Error())
 		}
 
-		err = ioutil.WriteFile(keyPath, keyPem.Bytes(), 0600)
+		err = ioutil.WriteFile(keyPath, keyPem, 0600)
 
 		if err != nil {
 			_ = os.Remove(certPath)
-			dief("Failed to write private key: %s", err.Error())
+			log.Fatalf("Failed to write private key: %s", err.Error())
 		}
 
 		fmt.Printf("Wrote certificate and key to %s\n", *outPath)
@@ -225,18 +114,18 @@ func main() {
 		config, err := kubeconfig.LoadFromFile(*kubeConfigPath)
 
 		if err != nil {
-			dief("Failed to load kubeconfig: %s", err.Error())
+			log.Fatalf("Failed to load kubeconfig: %s", err.Error())
 		}
 
 		config.AuthInfos[*commonName] = &kubeconfigapi.AuthInfo{
-			ClientCertificateData: certPem.Bytes(),
-			ClientKeyData:         keyPem.Bytes(),
+			ClientCertificateData: certPem,
+			ClientKeyData:         keyPem,
 		}
 
 		err = kubeconfig.WriteToFile(*config, *kubeConfigPath)
 
 		if err != nil {
-			die(err.Error())
+			log.Fatal(err.Error())
 		}
 
 		fmt.Printf("Added certificate and key to %s\n", *kubeConfigPath)

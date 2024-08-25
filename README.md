@@ -1,6 +1,6 @@
 ## minikube-client
 
-Generates client certificates and keys signed by Minikube's CA for quick authn/z setups.
+Generates client certificates and keys signed by Minikube's CA for quick authn setups.
 
 #### Usage
 
@@ -38,7 +38,7 @@ The location of your kubeconfig is resolved following rules similar to `kubectl`
 2. The first valid path in `$KUBECONFIG`, if present.
 3. `~/.kube/config`
 
-You can also generate a standalone certificate and private key with the `-out` flag:
+You can generate a standalone certificate and private key with the `-out` flag:
 
 ```shell script
 minikube-client -cn mymuser -o mygroup -out /some/path
